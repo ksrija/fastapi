@@ -1,11 +1,10 @@
-# from lib2to3.pytree import Base
-# from turtle import title
 from fastapi import FastAPI, Depends, status, Response, HTTPException
-from . import schemas, model
+from . import schemas, model, user
 from .database import engine, SessionLocal
 from sqlalchemy.orm import Session
 from typing import List
-
+from .db import collection_name, collection_name_1
+from bson import ObjectId
 app = FastAPI()
 
 # this is the line responsible fo creating the database
@@ -24,63 +23,52 @@ def get_db():
 
 @app.post("/blog", status_code=status.HTTP_201_CREATED)
 def posts(request: schemas.Blog, db: Session = Depends(get_db)):
-    new_blog = model.Blog(title=request.title, body=request.body)
-    db.add(new_blog)
-    db.commit()
-    db.refresh(new_blog)
-    return new_blog
-
-    # conn.local.user.insert_one(dict(request))
-    # return conn.local.user.find()
+    _id = collection_name.insert_one(dict(request))
+    return dict(request)
 
 
 @app.get("/blog", status_code=status.HTTP_201_CREATED, response_model=List[schemas.ShowBlog])
 def all(db: Session = Depends(get_db)):
-    blogs = db.query(model.Blog).all()
-    return blogs
 
-    # blogs = schemas.Blog(conn.local.user.find())
-    # return blogs
+    blogs = list(
+        collection_name.find())
+    return blogs
 
 
 # response model we will get according to the type of schema defined.
 @app.get("/blog/{id}", status_code=status.HTTP_200_OK, response_model=schemas.ShowBlog)
 def show(id, db: Session = Depends(get_db)):
-    blog = db.query(model.Blog).filter(model.Blog.id == id).first()
+    blog = collection_name.find_one({"_id": ObjectId(id)})
     if not blog:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Blog with id {id} not found")
-
     return blog
 
 
 @app.delete("/blog/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def destroy(id, db: Session = Depends(get_db)):
-    blog = db.query(model.Blog).filter(model.Blog.id == id)
-    if not blog.first():
+    blog = collection_name.find_one({"_id": ObjectId(id)})
+    if not blog:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Blog with id {id} not found.")
-    blog.delete(synchronize_session=False)
-    db.commit()
+
+    blog = collection_name.find_one_and_delete({"_id": ObjectId(id)})
     return "Done"
 
 
 @app.put("/blog/{id}", status_code=status.HTTP_202_ACCEPTED)
 def update(id, request: schemas.Blog, db: Session = Depends(get_db)):
-    blog = db.query(model.Blog).filter(model.Blog.id == id)
-    if not blog.first():
+    blog = collection_name.find_one({"_id": ObjectId(id)})
+    if not blog:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Blog with id {id} not found.")
-    blog.update({"title": request.title, "body": request.body})
-    db.commit()
+    collection_name.find_one_and_update({"_id": ObjectId(id)}, {
+        "$set": dict(request)
+    })
     return "Updated"
 
 
 @app.post("/users")
 def create_user(request: schemas.User, db: Session = Depends(get_db)):
-    new_user = model.User(
-        name=request.name, email=request.email, password=request.password)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+    _id = collection_name_1.insert_one(dict(request))
+    return dict(request)
