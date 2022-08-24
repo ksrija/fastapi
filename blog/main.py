@@ -8,9 +8,6 @@ from typing import List
 
 app = FastAPI()
 
-# this is the line responsible fo creating the database
-# if the table is not there it is gonna create one a
-# and if there is one then it is not when the server is running.
 model.Base.metadata.create_all(engine)
 
 
@@ -30,20 +27,13 @@ def posts(request: schemas.Blog, db: Session = Depends(get_db)):
     db.refresh(new_blog)
     return new_blog
 
-    # conn.local.user.insert_one(dict(request))
-    # return conn.local.user.find()
-
 
 @app.get("/blog", status_code=status.HTTP_201_CREATED, response_model=List[schemas.ShowBlog])
 def all(db: Session = Depends(get_db)):
     blogs = db.query(model.Blog).all()
     return blogs
 
-    # blogs = schemas.Blog(conn.local.user.find())
-    # return blogs
 
-
-# response model we will get according to the type of schema defined.
 @app.get("/blog/{id}", status_code=status.HTTP_200_OK, response_model=schemas.ShowBlog)
 def show(id, db: Session = Depends(get_db)):
     blog = db.query(model.Blog).filter(model.Blog.id == id).first()
